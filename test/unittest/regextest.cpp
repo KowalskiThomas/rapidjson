@@ -623,6 +623,16 @@ TEST(Regex, Invalid) {
     TEST_INVALID("[\\a]");
     TEST_INVALID("\\a");
 
+    // Empty groups adjacent to atoms caused a kConcatenation operand-stack
+    // underflow that reached RAPIDJSON_ASSERT and aborted. The group increments
+    // atomCount (via ImplicitConcatenation) without pushing a Frag, so the
+    // operator-stack drain later finds one fewer operand than expected.
+    TEST_INVALID("a()b");       // empty group between two atoms
+    TEST_INVALID("()a");        // empty group before an atom
+    TEST_INVALID("a()");        // empty group after an atom
+    TEST_INVALID("a()|b");      // empty group triggers assert via '|' drain
+    TEST_INVALID("x(())y");     // nested empty groups
+
 #undef TEST_INVALID
 }
 
@@ -634,6 +644,18 @@ TEST(Regex, Issue538) {
 TEST(Regex, Issue583) {
     Regex re("[0-9]{99999}");
     ASSERT_TRUE(re.IsValid());
+}
+
+// Patterns with empty groups () adjacent to atoms previously caused
+// GenericRegex::Eval to hit a hard RAPIDJSON_ASSERT (abort) instead of
+// returning false gracefully. Found by libFuzzer via schema "pattern" fields.
+TEST(Regex, EmptyGroupCrash) {
+    // All of these must return IsValid() == false without aborting.
+    EXPECT_FALSE(Regex("a()b").IsValid());
+    EXPECT_FALSE(Regex("()a").IsValid());
+    EXPECT_FALSE(Regex("a()").IsValid());
+    EXPECT_FALSE(Regex("a()|b").IsValid());
+    EXPECT_FALSE(Regex("x(())y").IsValid());
 }
 
 #undef EURO

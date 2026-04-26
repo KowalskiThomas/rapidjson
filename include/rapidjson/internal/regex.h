@@ -354,7 +354,8 @@ private:
     bool Eval(Stack<Allocator>& operandStack, Operator op) {
         switch (op) {
             case kConcatenation:
-                RAPIDJSON_ASSERT(operandStack.GetSize() >= sizeof(Frag) * 2);
+                if (operandStack.GetSize() < sizeof(Frag) * 2)
+                    return false;
                 {
                     Frag e2 = *operandStack.template Pop<Frag>(1);
                     Frag e1 = *operandStack.template Pop<Frag>(1);
